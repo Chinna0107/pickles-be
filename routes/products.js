@@ -6,17 +6,18 @@ const { authAdmin } = require('../middleware/auth');
 const CACHE_TTL = 300; // 5 minutes
 
 const getCache = async (key) => {
-  try { const v = await redis.get(key); return v ? JSON.parse(v) : null; }
+  try { if (!redis) return null; const v = await redis.get(key); return v ? JSON.parse(v) : null; }
   catch { return null; }
 };
 
 const setCache = async (key, data) => {
-  try { await redis.setEx(key, CACHE_TTL, JSON.stringify(data)); }
+  try { if (!redis) return; await redis.setEx(key, CACHE_TTL, JSON.stringify(data)); }
   catch {}
 };
 
 const clearProductCache = async () => {
   try {
+    if (!redis) return;
     const keys = await redis.keys('products:*');
     if (keys.length) await redis.del(keys);
   } catch {}
