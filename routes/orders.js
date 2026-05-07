@@ -36,12 +36,12 @@ router.post('/verify-payment', async (req, res) => {
   if (expectedSignature !== razorpay_signature)
     return res.status(400).json({ error: 'Payment verification failed' });
 
-  const { mobile, email, items, subtotal, discount, delivery, total, coupon, address } = orderData;
+  const { mobile, email, items, subtotal, discount, total, coupon, address } = orderData;
   try {
     const result = await pool.query(
       `INSERT INTO orders (mobile, email, items, subtotal, discount, delivery, total, coupon, address, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'confirmed') RETURNING *`,
-      [mobile, email, JSON.stringify(items), subtotal, discount || 0, delivery || 0, total, coupon || null, address]
+      [mobile, email, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address]
     );
     res.status(201).json({ order: result.rows[0], paymentId: razorpay_payment_id });
   } catch (err) {
@@ -87,6 +87,22 @@ router.put('/:id/status', authAdmin, async (req, res) => {
     const result = await pool.query(
       'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
       [status, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/orders/:id/tracking — admin: update tracking info
+router.put('/:id/tracking', authAdmin, async (req, res) => {
+  const { trackingId, trackingLink } = req.body;
+  
+  try {
+    const result = await pool.query(
+      'UPDATE orders SET tracking_id = $1, tracking_link = $2 WHERE id = $3 RETURNING *',
+      [trackingId || null, trackingLink || null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     res.json(result.rows[0]);
