@@ -14,6 +14,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/upload', require('./routes/upload'));
 
 app.get('/', (req, res) => res.json({ message: '🫙 OM Pickles API is running' }));
 
