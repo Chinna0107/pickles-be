@@ -5,15 +5,15 @@ const pool = require('../db');
 const { authCustomer, authAdmin } = require('../middleware/auth');
 
 async function sendAdminWhatsApp(order) {
+  const templateName = process.env.WHATSAPP_TEMPLATE === 'approved' ? 'new_order_alert' : 'hello_world';
+  const body = templateName === 'new_order_alert'
+    ? { name: 'new_order_alert', language: { code: 'en_US' }, components: [{ type: 'body', parameters: [{ type: 'text', text: String(order.id) }, { type: 'text', text: String(order.total) }, { type: 'text', text: String(order.mobile) }] }] }
+    : { name: 'hello_world', language: { code: 'en_US' } };
+
   const res = await fetch(`https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: process.env.ADMIN_WHATSAPP,
-      type: 'text',
-      text: { body: `🛒 New Order Received!\nOrder #${order.id} | ₹${order.total}\nCustomer: ${order.mobile}` }
-    })
+    body: JSON.stringify({ messaging_product: 'whatsapp', to: process.env.ADMIN_WHATSAPP, type: 'template', template: body })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(JSON.stringify(data));
