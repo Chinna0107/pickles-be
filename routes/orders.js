@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const pool = require('../db');
 const { authCustomer, authAdmin } = require('../middleware/auth');
+const { sendWhatsApp } = require('../whatsapp');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -43,6 +44,7 @@ router.post('/verify-payment', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'confirmed') RETURNING *`,
       [mobile, email, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address]
     );
+    sendWhatsApp(process.env.ADMIN_MOBILE, `🛒 New Order Received!\nOrder #${result.rows[0].id} | ₹${result.rows[0].total}\nCustomer: ${result.rows[0].mobile}`).catch(err => console.error('WhatsApp notify failed:', err.message));
     res.status(201).json({ order: result.rows[0], paymentId: razorpay_payment_id });
   } catch (err) {
     res.status(500).json({ error: err.message });
