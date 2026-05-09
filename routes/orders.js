@@ -5,7 +5,7 @@ const pool = require('../db');
 const { authCustomer, authAdmin } = require('../middleware/auth');
 
 async function sendAdminWhatsApp(order) {
-  await fetch(`https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
+  const res = await fetch(`https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -15,6 +15,9 @@ async function sendAdminWhatsApp(order) {
       text: { body: `🛒 New Order Received!\nOrder #${order.id} | ₹${order.total}\nCustomer: ${order.mobile}` }
     })
   });
+  const data = await res.json();
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  console.log('WhatsApp sent:', data.messages?.[0]?.id);
 }
 
 const razorpay = new Razorpay({
