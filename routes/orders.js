@@ -3,7 +3,19 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const pool = require('../db');
 const { authCustomer, authAdmin } = require('../middleware/auth');
-const { sendWhatsApp } = require('../whatsapp');
+
+async function sendAdminWhatsApp(order) {
+  await fetch(`https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: process.env.ADMIN_WHATSAPP,
+      type: 'text',
+      text: { body: `🛒 New Order Received!\nOrder #${order.id} | ₹${order.total}\nCustomer: ${order.mobile}` }
+    })
+  });
+}
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -44,7 +56,7 @@ router.post('/verify-payment', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'confirmed') RETURNING *`,
       [mobile, email, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address]
     );
-    sendWhatsApp(process.env.ADMIN_MOBILE, `🛒 New Order Received!\nOrder #${result.rows[0].id} | ₹${result.rows[0].total}\nCustomer: ${result.rows[0].mobile}`).catch(err => console.error('WhatsApp notify failed:', err.message));
+    sendAdminWhatsApp(result.rows[0]).catch(err => console.error('WhatsApp notify failed:', err.message));
     res.status(201).json({ order: result.rows[0], paymentId: razorpay_payment_id });
   } catch (err) {
     res.status(500).json({ error: err.message });
