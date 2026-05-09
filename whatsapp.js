@@ -4,7 +4,14 @@ const qrcode = require('qrcode');
 let qrImageUrl = null;
 let isReady = false;
 
-const wClient = new Client({ authStrategy: new LocalAuth(), puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] } });
+const wClient = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    headless: true,
+    executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome-stable',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+  }
+});
 
 wClient.on('qr', async qr => {
   qrImageUrl = await qrcode.toDataURL(qr);
