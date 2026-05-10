@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const pool = require('./db');
 require('dotenv').config();
 
 const app = express();
@@ -7,6 +8,16 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+
+// Auto-migrate: add missing columns to orders if not exists
+pool.query(`
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS name VARCHAR(100);
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_id VARCHAR(100);
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_link TEXT;
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_id VARCHAR(100);
+`)
+  .then(() => console.log('✅ orders table columns ready'))
+  .catch(err => console.error('Migration error:', err.message));
 
 // Routes
 app.use('/api/customer', require('./routes/customer'));

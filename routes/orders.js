@@ -5,8 +5,8 @@ const pool = require('../db');
 const { authCustomer, authAdmin } = require('../middleware/auth');
 
 async function sendAdminWhatsApp(order) {
-  const templateName = process.env.WHATSAPP_TEMPLATE === 'approved' ? 'new_order_alert' : 'hello_world';
-  const body = templateName === 'new_order_alert'
+  const useOrderAlert = process.env.WHATSAPP_TEMPLATE === 'approved';
+  const body = useOrderAlert
     ? { name: 'new_order_alert', language: { code: 'en_US' }, components: [{ type: 'body', parameters: [{ type: 'text', text: String(order.id) }, { type: 'text', text: String(order.total) }, { type: 'text', text: String(order.mobile) }] }] }
     : { name: 'hello_world', language: { code: 'en_US' } };
 
@@ -52,12 +52,12 @@ router.post('/verify-payment', async (req, res) => {
   if (expectedSignature !== razorpay_signature)
     return res.status(400).json({ error: 'Payment verification failed' });
 
-  const { mobile, email, items, subtotal, discount, total, coupon, address } = orderData;
+  const { mobile, email, name, items, subtotal, discount, total, coupon, address } = orderData;
   try {
     const result = await pool.query(
-      `INSERT INTO orders (mobile, email, items, subtotal, discount, delivery, total, coupon, address, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'confirmed') RETURNING *`,
-      [mobile, email, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address]
+      `INSERT INTO orders (mobile, email, name, items, subtotal, discount, delivery, total, coupon, address, status, payment_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'confirmed',$11) RETURNING *`,
+      [mobile, email, name || null, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address, razorpay_payment_id]
     );
     sendAdminWhatsApp(result.rows[0]).catch(err => console.error('WhatsApp notify failed:', err.message));
     res.status(201).json({ order: result.rows[0], paymentId: razorpay_payment_id });

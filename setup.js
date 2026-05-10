@@ -41,6 +41,7 @@ async function setupDB() {
       id SERIAL PRIMARY KEY,
       mobile VARCHAR(15) NOT NULL,
       email VARCHAR(150) NOT NULL,
+      name VARCHAR(100),
       items JSONB NOT NULL,
       subtotal NUMERIC(10,2),
       discount NUMERIC(10,2) DEFAULT 0,
@@ -49,6 +50,9 @@ async function setupDB() {
       coupon VARCHAR(30),
       status VARCHAR(30) DEFAULT 'pending',
       address TEXT,
+      tracking_id VARCHAR(100),
+      tracking_link TEXT,
+      payment_id VARCHAR(100),
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
