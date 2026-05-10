@@ -16,8 +16,11 @@ async function sendAdminWhatsApp(order) {
     body: JSON.stringify({ messaging_product: 'whatsapp', to: process.env.ADMIN_WHATSAPP, type: 'template', template: body })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(JSON.stringify(data));
-  console.log('WhatsApp sent:', data.messages?.[0]?.id);
+  if (!res.ok) {
+    console.log(`❌ WhatsApp notification FAILED for Order #${order.id}:`, JSON.stringify(data));
+    throw new Error(JSON.stringify(data));
+  }
+  console.log(`✅ WhatsApp notification SENT for Order #${order.id} | template: ${useOrderAlert ? 'new_order_alert' : 'hello_world'} | msgId: ${data.messages?.[0]?.id}`);
 }
 
 const razorpay = new Razorpay({
@@ -59,7 +62,7 @@ router.post('/verify-payment', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'confirmed',$11) RETURNING *`,
       [mobile, email, name || null, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address, razorpay_payment_id]
     );
-    sendAdminWhatsApp(result.rows[0]).catch(err => console.error('WhatsApp notify failed:', err.message));
+    sendAdminWhatsApp(result.rows[0]).catch(err => console.log(`❌ WhatsApp notification NO for Order #${result.rows[0].id}:`, err.message));
     res.status(201).json({ order: result.rows[0], paymentId: razorpay_payment_id });
   } catch (err) {
     res.status(500).json({ error: err.message });
