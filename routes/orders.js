@@ -62,8 +62,13 @@ router.post('/verify-payment', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'confirmed',$11) RETURNING *`,
       [mobile, email, name || null, JSON.stringify(items), subtotal, discount || 0, 0, total, coupon || null, address, razorpay_payment_id]
     );
-    sendAdminWhatsApp(result.rows[0]).catch(err => console.log(`❌ WhatsApp notification NO for Order #${result.rows[0].id}:`, err.message));
-    res.status(201).json({ order: result.rows[0], paymentId: razorpay_payment_id });
+    const order = result.rows[0];
+    try {
+      await sendAdminWhatsApp(order);
+    } catch (err) {
+      console.log(`❌ WhatsApp notification NO for Order #${order.id}:`, err.message);
+    }
+    res.status(201).json({ order, paymentId: razorpay_payment_id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
