@@ -4,23 +4,51 @@ const Razorpay = require('razorpay');
 const pool = require('../db');
 const { authCustomer, authAdmin } = require('../middleware/auth');
 
-async function sendAdminWhatsApp(order) {
-  const useOrderAlert = process.env.WHATSAPP_TEMPLATE === 'approved';
-  const body = useOrderAlert
-    ? { name: 'new_order_alert', language: { code: 'en_US' }, components: [{ type: 'body', parameters: [{ type: 'text', text: String(order.id) }, { type: 'text', text: String(order.total) }, { type: 'text', text: String(order.mobile) }] }] }
-    : { name: 'hello_world', language: { code: 'en_US' } };
+async function sendAdminWhatsApp(orderId) {
+  // Fetch full order details from DB
+  const result = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  const order = result.rows[0];
+  if (!order) throw new Error('Order not found');
 
-  const res = await fetch(`https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
+  const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+  const itemLines = Array.isArray(items)
+    ? items.map(i => `  • ${i.name} (${i.selectedWeight}) x${i.qty}`).join('\n')
+    : '  • N/A';
+
+  const message =
+`🛒 *New Order Received!*
+
+*Order ID:* #${order.id}
+*Customer:* ${order.name || 'N/A'}
+*Mobile:* ${order.mobile}
+*Email:* ${order.email}
+
+*Items:*
+${itemLines}
+
+*Subtotal:* ₹${parseFloat(order.subtotal).toFixed(0)}
+${parseFloat(order.discount) > 0 ? `*Discount:* -₹${parseFloat(order.discount).toFixed(0)}\n` : ''}*Total:* ₹${parseFloat(order.total).toFixed(0)}
+${order.coupon ? `*Coupon:* ${order.coupon}\n` : ''}
+*Address:* ${order.address || 'N/A'}
+*Payment ID:* ${order.payment_id || 'N/A'}
+*Status:* ${order.status}`;
+
+  const res = await fetch(`https://graph.facebook.com/v25.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: process.env.ADMIN_WHATSAPP, type: 'template', template: body })
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: process.env.ADMIN_WHATSAPP,
+      type: 'text',
+      text: { body: message }
+    })
   });
   const data = await res.json();
   if (!res.ok) {
     console.log(`❌ WhatsApp notification FAILED for Order #${order.id}:`, JSON.stringify(data));
     throw new Error(JSON.stringify(data));
   }
-  console.log(`✅ WhatsApp notification SENT for Order #${order.id} | template: ${useOrderAlert ? 'new_order_alert' : 'hello_world'} | msgId: ${data.messages?.[0]?.id}`);
+  console.log(`✅ WhatsApp notification SENT for Order #${order.id} | msgId: ${data.messages?.[0]?.id}`);
 }
 
 const razorpay = new Razorpay({
@@ -64,7 +92,7 @@ router.post('/verify-payment', async (req, res) => {
     );
     const order = result.rows[0];
     try {
-      await sendAdminWhatsApp(order);
+      await sendAdminWhatsApp(order.id);
     } catch (err) {
       console.log(`❌ WhatsApp notification NO for Order #${order.id}:`, err.message);
     }
