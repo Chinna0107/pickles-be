@@ -39,8 +39,19 @@ ${order.coupon ? `*Coupon:* ${order.coupon}\n` : ''}
     body: JSON.stringify({
       messaging_product: 'whatsapp',
       to: process.env.ADMIN_WHATSAPP,
-      type: 'text',
-      text: { body: message }
+      type: 'template',
+      template: {
+        name: 'new_order_alert',
+        language: { code: 'en_US' },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: String(order.id) },
+            { type: 'text', text: String(order.total) },
+            { type: 'text', text: String(order.mobile) }
+          ]
+        }]
+      }
     })
   });
   const data = await res.json();
